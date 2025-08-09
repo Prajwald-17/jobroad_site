@@ -57,6 +57,22 @@ function getBucket() {
   return new mongoose.mongo.GridFSBucket(db, { bucketName: "resumes" });
 }
 
+/* ------------------- API Routes ------------------- */
+
+// Root route - API status
+app.get("/", (req, res) => {
+  res.json({
+    message: "Job Site API is running!",
+    version: "1.0.0",
+    endpoints: {
+      jobs: "/jobs",
+      applications: "/applications",
+      resumes: "/resumes/:fileId"
+    },
+    status: "healthy"
+  });
+});
+
 /* ------------------- Jobs CRUD (simple) ------------------- */
 
 // GET /jobs - list all jobs
