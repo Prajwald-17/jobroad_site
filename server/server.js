@@ -18,8 +18,9 @@ const app = express();
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://your-frontend-url.vercel.app', // Replace with your actual frontend URL
-        'https://jobroad-site.vercel.app' // Example - update this
+        process.env.FRONTEND_URL || 'https://jobroad-site.vercel.app',
+        'https://jobroad-site-prajwald-17s-projects.vercel.app', // Common Vercel pattern
+        /^https:\/\/jobroad-site.*\.vercel\.app$/ // Allow any jobroad-site deployment
       ]
     : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
