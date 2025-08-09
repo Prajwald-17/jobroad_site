@@ -13,7 +13,21 @@ import Job from "./models/job.js";
 import Application from "./models/Application.js";
 
 const app = express();
-app.use(cors());
+
+// CORS configuration
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [
+        'https://your-frontend-url.vercel.app', // Replace with your actual frontend URL
+        'https://jobroad-site.vercel.app' // Example - update this
+      ]
+    : ['http://localhost:3000', 'http://localhost:3001'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Multer: keep file in memory, we'll pipe to GridFS
