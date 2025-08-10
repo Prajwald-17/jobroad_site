@@ -18,21 +18,26 @@ const corsOptions = {
     'https://jobroad-site.vercel.app',
     'https://jobroad-site-prajwald-17s-projects.vercel.app',
     /^https:\/\/jobroad-site.*\.vercel\.app$/,
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://localhost:3001'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
 app.use(cors(corsOptions));
 app.use(express.json());
 
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
 // MongoDB connection with caching for serverless
 let cachedConnection = null;
 
 async function connectToDatabase() {
-  if (cachedConnection) {
+  if (cachedConnection && mongoose.connection.readyState === 1) {
     return cachedConnection;
   }
 
@@ -42,11 +47,19 @@ async function connectToDatabase() {
   }
 
   try {
+    // Close existing connection if it's in a bad state
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+
     const connection = await mongoose.connect(mongoUri, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
+      serverSelectionTimeoutMS: 10000, // Timeout after 10s
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      bufferCommands: false, // Disable mongoose buffering
+      bufferMaxEntries: 0 // Disable mongoose buffering
     });
     
     cachedConnection = connection;
@@ -54,21 +67,39 @@ async function connectToDatabase() {
     return connection;
   } catch (error) {
     console.error("MongoDB connection error:", error);
+    cachedConnection = null;
     throw error;
   }
 }
 
 // Root route - API status
-app.get("/", (req, res) => {
-  res.json({
-    message: "Job Site API is running!",
-    version: "1.0.0",
-    endpoints: {
-      jobs: "/jobs",
-      applications: "/applications"
-    },
-    status: "healthy"
-  });
+app.get("/", async (req, res) => {
+  try {
+    // Test database connection
+    await connectToDatabase();
+    const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    
+    res.json({
+      message: "Job Site API is running!",
+      version: "1.0.0",
+      endpoints: {
+        jobs: "/jobs",
+        applications: "/applications"
+      },
+      status: "healthy",
+      database: dbStatus,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Job Site API is running but database connection failed",
+      version: "1.0.0",
+      status: "unhealthy",
+      database: "disconnected",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // GET /jobs - list all jobs
